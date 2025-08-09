@@ -42,7 +42,7 @@ jobs:
         name: "LYTE-Installer-RELEASE"
         body: |
           Latest LYTE_Installer release
-        files: LYTE_Installer
+        files: LYTE_Installer.exe
         draft: False
         prerelease: False
       env:

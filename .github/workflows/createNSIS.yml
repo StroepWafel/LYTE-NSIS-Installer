@@ -1,0 +1,42 @@
+name: Build NSIS Installer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Install NSIS
+      run: |
+        choco install nsis -y
+        makensis /version
+
+    - name: Compile NSIS installer
+      run: |
+        makensis LYTEInstaller.nsi
+
+    - name: Upload installer artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: LYTE_Installer
+        path: LYTE_Installer.exe
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: Release
+        name: "LYTE-Installer-RELEASE"
+        body: |
+          Latest LYTE_Installer release
+        files: LYTE_Installer
+        draft: False
+        prerelease: False
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

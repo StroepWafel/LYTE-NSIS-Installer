@@ -18,10 +18,11 @@ jobs:
         choco install nsis -y
         makensis /version
     
-    - name: Download inetc plugin
+    - name: Download and install inetc plugin
       run: |
         curl -L -o inetc.zip https://nsis.sourceforge.io/mediawiki/images/d/d5/Inetc.zip
-        powershell -command "Expand-Archive -Path inetc.zip -DestinationPath 'C:\\Program Files (x86)\\NSIS\\Plugins\\x86-unicode\\'"
+        powershell -command "Expand-Archive -Path inetc.zip -DestinationPath 'C:\\Program Files (x86)\\NSIS\\Plugins\\'"
+
 
     - name: Compile NSIS installer
       run: |

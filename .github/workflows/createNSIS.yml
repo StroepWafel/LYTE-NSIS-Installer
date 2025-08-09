@@ -28,13 +28,3 @@ jobs:
       with:
         name: LYTE_Installer
         path: LYTE_Installer.exe
-
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: "Release"
-        name: LYTE Installer build ${{ github.run_number }}
-        body: Release for build ${{ github.run_number }}
-        files: LYTE_Installer.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

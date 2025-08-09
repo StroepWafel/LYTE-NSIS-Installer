@@ -4,7 +4,7 @@
 !include "nsDialogs.nsh"
 
 
-Name "LYTE Installer"
+Name "LYTE"
 OutFile "LYTE_Installer.exe"
 InstallDir "$APPDATA\LYTE"
 InstallDirRegKey HKLM "Software\LYTE" "Install_Dir"
@@ -267,5 +267,6 @@ SectionEnd
 Function un.onInit
   ReadRegStr $INSTDIR HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\LYTE" "InstallLocation"
 FunctionEnd
+
 
 

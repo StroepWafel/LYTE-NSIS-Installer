@@ -18,10 +18,11 @@ jobs:
         choco install nsis -y
         makensis /version
     
-    - name: Download and install inetc plugin
+    - name: Copy inetc plugin DLLs from repo to NSIS Plugins folder
       run: |
-        curl -L -o inetc.zip https://nsis.sourceforge.io/mediawiki/images/d/d5/Inetc.zip
-        powershell -command "Expand-Archive -Path inetc.zip -DestinationPath 'C:\\Program Files (x86)\\NSIS\\Plugins\\'"
+        copy nsis-plugins\x86-ansi\inetc.dll "C:\Program Files (x86)\NSIS\Plugins\x86-ansi\inetc.dll"
+        copy nsis-plugins\x86-unicode\inetc.dll "C:\Program Files (x86)\NSIS\Plugins\x86-unicode\inetc.dll"
+
 
 
     - name: Compile NSIS installer

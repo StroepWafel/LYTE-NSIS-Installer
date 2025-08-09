@@ -4,4 +4,6 @@ LYTE: https://github.com/StroepWafel/LYTE/releases/latest/download/LYTE.exe
 Microsoft Visual C++ Redistributable: https://aka.ms/vs/17/release/vc_redist.x64.exe
 
 
+
 Uses NSIS: https://nsis.sourceforge.io/Download
+and inetc: https://nsis.sourceforge.io/Inetc_plug-in

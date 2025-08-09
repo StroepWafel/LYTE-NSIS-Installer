@@ -23,10 +23,6 @@ jobs:
     - name: Compile NSIS installer
       run: makensis LYTEInstaller.nsi
 
-    - name: Rename output EXE with run number
-      run: |
-        rename LYTE_Installer.exe LYTE_Installer_build-${{ github.run_number }}.exe
-
     - name: Upload installer artifact
       uses: actions/upload-artifact@v4
       with:

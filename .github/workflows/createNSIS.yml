@@ -1,24 +1,21 @@
-name: Build and Release NSIS Installer
+name: Build NSIS Installer
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  build_and_release:
+  build:
     runs-on: windows-latest
+
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0  # necessary for tagging
+    - uses: actions/checkout@v3
 
     - name: Install NSIS
       run: choco install nsis -y
 
-    - name: Copy inetc plugin DLLs from repo to NSIS Plugins folder
+    - name: Copy inetc plugin DLLs
       run: |
         copy plugins\x86-ansi\inetc.dll "C:\Program Files (x86)\NSIS\Plugins\x86-ansi\inetc.dll"
         copy plugins\x86-unicode\inetc.dll "C:\Program Files (x86)\NSIS\Plugins\x86-unicode\inetc.dll"
@@ -26,45 +23,23 @@ jobs:
     - name: Compile NSIS installer
       run: makensis LYTEInstaller.nsi
 
+    - name: Rename output EXE with run number
+      run: |
+        rename LYTE_Installer.exe LYTE_Installer_build-${{ github.run_number }}.exe
+
     - name: Upload installer artifact
       uses: actions/upload-artifact@v4
       with:
-        name: LYTE_Installer
-        path: LYTE_Installer.exe
-
-    - name: Set tag version
-      id: tag_version
-      run: |
-        # Get latest tag name, fallback to v0.0.0
-        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-        echo "Latest tag: $latest_tag"
-        
-        # Parse major.minor.patch
-        IFS='.' read -r major minor patch <<< "${latest_tag#v}"
-        
-        # Increment patch version
-        patch=$((patch + 1))
-        new_tag="v$major.$minor.$patch"
-        echo "New tag: $new_tag"
-        
-        echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
-
-    - name: Create git tag and push
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git tag ${{ steps.tag_version.outputs.new_tag }}
-        git push origin ${{ steps.tag_version.outputs.new_tag }}
+        name: LYTE_Installer_build-${{ github.run_number }}
+        path: LYTE_Installer_build-${{ github.run_number }}.exe
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.tag_version.outputs.new_tag }}
-        name: "LYTE Installer ${{ steps.tag_version.outputs.new_tag }}"
-        files: LYTE_Installer.exe
-        draft: false
-        prerelease: false
+        tag_name: build-${{ github.run_number }}
+        name: LYTE Installer build ${{ github.run_number }}
+        body: |
+          Release for build ${{ github.run_number }}
+        files: LYTE_Installer_build-${{ github.run_number }}.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

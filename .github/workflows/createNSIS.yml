@@ -26,16 +26,16 @@ jobs:
     - name: Upload installer artifact
       uses: actions/upload-artifact@v4
       with:
-        name: LYTE_Installer_build-${{ github.run_number }}
-        path: LYTE_Installer_build-${{ github.run_number }}.exe
+        name: LYTE_Installer
+        path: LYTE_Installer.exe
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         tag_name: build-${{ github.run_number }}
-        name: LYTE Installer build ${{ github.run_number }}
+        name: LYTE Installer
         body: |
           Release for build ${{ github.run_number }}
-        files: LYTE_Installer_build-${{ github.run_number }}.exe
+        files: LYTE_Installer.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

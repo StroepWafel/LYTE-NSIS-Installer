@@ -29,13 +29,6 @@ jobs:
         name: LYTE_Installer
         path: LYTE_Installer.exe
 
-    - name: Create or update latest tag
-      run: |
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
-        git tag -f latest
-        git push origin latest -f
-
     - name: Create GitHub Release
       id: create_release
       uses: actions/create-release@v1

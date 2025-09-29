@@ -39,6 +39,9 @@ Var VLCCheckbox
 Var VCRedistCheckbox
 Var ComponentsLabel
 
+; Variables for uninstall
+Var RemoveSettings
+
 ;--------------------------------
 ; Pages
 ;--------------------------------
@@ -73,8 +76,6 @@ Function DirectoryPageLeave
     MessageBox MB_ICONEXCLAMATION "Please select an installation directory."
     Abort
   ${EndIf}
-  
-
   
   ; Check if directory is writable
   GetTempFileName $0
@@ -329,56 +330,75 @@ FunctionEnd
 ; Uninstaller Section
 ;--------------------------------
 Section "Uninstall" Uninstall
-  ; Remove application files
+  ; Remove application executable
   Delete "$INSTDIR\LYTE.exe"
-  Delete "$INSTDIR\banned_IDs.json"
-  Delete "$INSTDIR\banned_users.json"
-  Delete "$INSTDIR\config.json"
-  Delete "$INSTDIR\*.log"
-  
-  ; Remove logs directory if empty
-  RMDir "$INSTDIR\logs"
-  
+
+  ${If} $RemoveSettings == "1"
+    ; Remove settings/config files
+    Delete "$INSTDIR\banned_IDs.json"
+    Delete "$INSTDIR\banned_users.json"
+    Delete "$INSTDIR\config.json"
+    Delete "$INSTDIR\*.log"
+    ; Remove logs directory if empty
+    RMDir "$INSTDIR\logs"
+  ${EndIf}
+
   ; Remove uninstaller
   Delete "$INSTDIR\uninstall.exe"
-  
+
   ; Remove shortcuts
   Delete "$SMPROGRAMS\LYTE\LYTE.lnk"
   Delete "$SMPROGRAMS\LYTE\Uninstall LYTE.lnk"
   RMDir "$SMPROGRAMS\LYTE"
   Delete "$DESKTOP\LYTE.lnk"
-  
+
   ; Remove registry entries
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\LYTE"
   DeleteRegKey HKLM "Software\LYTE"
-  
+
   ; Remove installation directory if empty
   RMDir "$INSTDIR"
-  
+
   ; Show completion message
   MessageBox MB_ICONINFORMATION "LYTE has been successfully uninstalled from your computer."
 SectionEnd
 
+
+;--------------------------------
+; Uninstaller Init
+;--------------------------------
+
 Function un.onInit
   ; Read installation directory from registry
   ReadRegStr $INSTDIR HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\LYTE" "InstallLocation"
-  
+
   ; If not found, use default
   ${If} $INSTDIR == ""
     StrCpy $INSTDIR "$PROGRAMFILES64\LYTE"
   ${EndIf}
-  
+
   ; Confirm uninstall
-  MessageBox MB_ICONQUESTION|MB_YESNO "Are you sure you want to completely remove LYTE and all of its components?" IDYES proceed_uninstall IDNO cancel_uninstall
+  MessageBox MB_ICONQUESTION|MB_YESNO "Are you sure you want to completely remove LYTE and all of its components?" IDYES continue_uninstall IDNO cancel_uninstall
   cancel_uninstall:
-  Abort
-  proceed_uninstall:
+    Abort
+  continue_uninstall:
+
+  ; Ask about removing settings
+  MessageBox MB_ICONQUESTION|MB_YESNO "Do you also want to remove all settings and configuration files? (This will delete config.json, banned lists, and logs)" IDYES remove_settings IDNO keep_settings
+
+  remove_settings:
+    StrCpy $RemoveSettings "1"
+    Goto done_settings
+
+  keep_settings:
+    StrCpy $RemoveSettings "0"
+    Goto done_settings
+
+  done_settings:
 FunctionEnd
 
 ;--------------------------------
 ; Section Descriptions
 ;--------------------------------
 ; Note: Section descriptions are handled in the custom ComponentsPageCreate function
-
-
 

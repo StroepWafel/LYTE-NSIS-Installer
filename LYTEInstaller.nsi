@@ -141,12 +141,14 @@ Function ComponentsPageCreate
   Pop $0
   ${NSD_SetState} $0 ${BST_CHECKED}
   ${NSD_OnClick} $0 OnStartMenuClick
+  StrCpy $AddStartMenu ${BST_CHECKED}
 
   ${NSD_CreateCheckBox} 20 180 100% 15 "Create Desktop shortcut"
   Pop $0
   ${NSD_SetState} $0 ${BST_CHECKED}
   ${NSD_OnClick} $0 OnDesktopClick
-
+  StrCpy $AddDesktop ${BST_CHECKED}
+    
   nsDialogs::Show
 FunctionEnd
 
@@ -401,5 +403,6 @@ FunctionEnd
 ; Section Descriptions
 ;--------------------------------
 ; Note: Section descriptions are handled in the custom ComponentsPageCreate function
+
 
 

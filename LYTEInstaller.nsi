@@ -178,13 +178,13 @@ Section "Microsoft Visual C++ Redistributable" SEC_VC
     SetOutPath "$PLUGINSDIR"
     
     ; Show progress
-    inetc::get "Downloading VC++ Redistributable..." "https://aka.ms/vs/17/release/vc_redist.x64.exe" "$PLUGINSDIR\vc_redist.x64.exe" /end
+    inetc::get "https://aka.ms/vs/17/release/vc_redist.x64.exe" "$PLUGINSDIR\vc_redist.x64.exe" /end
     Pop $0
     ${If} $0 != "OK"
       MessageBox MB_ICONSTOP|MB_RETRYCANCEL "Failed to download VC++ Redistributable. Error: $0. Click Retry to try again or Cancel to skip this component." IDRETRY retry_vc_download IDCANCEL skip_vc
       Goto skip_vc
       retry_vc_download:
-      inetc::get "Retrying VC++ Redistributable download..." "https://aka.ms/vs/17/release/vc_redist.x64.exe" "$PLUGINSDIR\vc_redist.x64.exe" /end
+      inetc::get "https://aka.ms/vs/17/release/vc_redist.x64.exe" "$PLUGINSDIR\vc_redist.x64.exe" /end
       Pop $0
       ${If} $0 != "OK"
         MessageBox MB_ICONSTOP "Failed to download VC++ Redistributable after retry. Skipping this component."
@@ -204,31 +204,56 @@ SectionEnd
 
 Section "Python 3.13.6" SEC_PYTHON
   ${If} $InstallPython == ${BST_CHECKED}
-    DetailPrint "Downloading Python installer..."
-    SetOutPath "$PLUGINSDIR"
-    
-    inetc::get "https://www.python.org/ftp/python/3.13.6/python-3.13.6-amd64.exe" "$PLUGINSDIR\python-3.13.6-amd64.exe" /end
-    Pop $0
-    ${If} $0 != "OK"
-      MessageBox MB_ICONSTOP|MB_RETRYCANCEL "Failed to download Python installer. Error: $0. Click Retry to try again or Cancel to skip this component." IDRETRY retry_python_download IDCANCEL skip_python
-      Goto skip_python
-      retry_python_download:
-      DetailPrint "Retrying Python download..."
+    ; Check if Python is already installed
+    DetailPrint "Checking if Python is already installed..."
+    ClearErrors
+    ReadRegStr $0 HKLM "SOFTWARE\Python\PythonCore\3.13\InstallPath" ""
+    ${If} ${Errors}
+      ; Try checking PATH
+      nsExec::ExecToLog 'cmd /c "python --version"'
+      Pop $0
+      ${If} $0 == 0
+        DetailPrint "Python is already installed and available in PATH."
+        Goto python_installed
+      ${EndIf}
+      
+      ; Python not found, proceed with installation
+      DetailPrint "Python not found. Downloading Python installer..."
+      SetOutPath "$PLUGINSDIR"
+      
       inetc::get "https://www.python.org/ftp/python/3.13.6/python-3.13.6-amd64.exe" "$PLUGINSDIR\python-3.13.6-amd64.exe" /end
       Pop $0
       ${If} $0 != "OK"
-        MessageBox MB_ICONSTOP "Failed to download Python. Skipping."
+        MessageBox MB_ICONSTOP|MB_RETRYCANCEL "Failed to download Python installer. Error: $0. Click Retry to try again or Cancel to skip this component." IDRETRY retry_python_download IDCANCEL skip_python
         Goto skip_python
+        retry_python_download:
+        DetailPrint "Retrying Python download..."
+        inetc::get "https://www.python.org/ftp/python/3.13.6/python-3.13.6-amd64.exe" "$PLUGINSDIR\python-3.13.6-amd64.exe" /end
+        Pop $0
+        ${If} $0 != "OK"
+          MessageBox MB_ICONSTOP "Failed to download Python. Skipping."
+          Goto skip_python
+        ${EndIf}
       ${EndIf}
+
+      DetailPrint "Installing Python..."
+      ExecWait '"$PLUGINSDIR\python-3.13.6-amd64.exe" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0 Include_doc=0 Include_tcltk=0' $0
+      ${If} $0 != 0
+        ; Exit code 1638 means "Another version is already installed" - treat as success
+        ${If} $0 == 1638
+          DetailPrint "Python is already installed on this system (exit code 1638). Skipping installation."
+          Goto python_installed
+        ${Else}
+          MessageBox MB_ICONSTOP "Python installation failed with exit code: $0. LYTE may not function properly without Python."
+          Goto skip_python
+        ${EndIf}
+      ${EndIf}
+    ${Else}
+      DetailPrint "Python 3.13 is already installed."
+      Goto python_installed
     ${EndIf}
 
-    DetailPrint "Installing Python..."
-    ExecWait '"$PLUGINSDIR\python-3.13.6-amd64.exe" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0 Include_doc=0 Include_tcltk=0' $0
-    ${If} $0 != 0
-      MessageBox MB_ICONSTOP "Python installation failed with exit code: $0. LYTE may not function properly without Python."
-      Goto skip_python
-    ${EndIf}
-
+    python_installed:
     ; Wait for Python to be available in PATH
     DetailPrint "Waiting for Python to be available..."
     Sleep 3000
@@ -249,7 +274,7 @@ Section "VLC Media Player" SEC_VLC
     DetailPrint "Downloading VLC installer..."
     SetOutPath "$PLUGINSDIR"
     
-    inetc::get "Downloading VLC..." "https://mirror.aarnet.edu.au/pub/videolan/vlc/3.0.21/win64/vlc-3.0.21-win64.exe" "$PLUGINSDIR\vlc-3.0.21-win64.exe" /end
+    inetc::get "https://mirror.aarnet.edu.au/pub/videolan/vlc/3.0.21/win64/vlc-3.0.21-win64.exe" "$PLUGINSDIR\vlc-3.0.21-win64.exe" /end
     Pop $0
     ${If} $0 != "OK"
       MessageBox MB_ICONSTOP|MB_RETRYCANCEL "Failed to download VLC installer. Error: $0. Click Retry to try again or Cancel to skip this component." IDRETRY retry_vlc_download IDCANCEL skip_vlc
@@ -275,23 +300,45 @@ Section "VLC Media Player" SEC_VLC
 SectionEnd
 
 Section "LYTE Application" SEC_MAIN
+  ; Ensure installation directory exists and is writable
+  DetailPrint "Preparing installation directory..."
+  CreateDirectory "$INSTDIR"
+  IfFileExists "$INSTDIR\*.*" 0 dir_error
   SetOutPath "$INSTDIR"
 
+  ; Download to temporary location first, then copy to final location
   DetailPrint "Downloading LYTE..."
-  inetc::get "https://github.com/StroepWafel/LYTE/releases/latest/download/LYTE.exe" "$INSTDIR\LYTE.exe" /end
+  SetOutPath "$PLUGINSDIR"
+  inetc::get "https://github.com/StroepWafel/LYTE/releases/latest/download/LYTE.exe" "$PLUGINSDIR\LYTE.exe" /end
   Pop $0
   ${If} $0 != "OK"
     MessageBox MB_ICONSTOP|MB_RETRYCANCEL "Failed to download LYTE. Error: $0. Click Retry to try again or Cancel to abort installation." IDRETRY retry_lyte_download IDCANCEL abort_install
-    Goto retry_lyte_download
     retry_lyte_download:
     DetailPrint "Retrying LYTE download..."
-    inetc::get "https://github.com/StroepWafel/LYTE/releases/latest/download/LYTE.exe" "$INSTDIR\LYTE.exe" /end
+    inetc::get "https://github.com/StroepWafel/LYTE/releases/latest/download/LYTE.exe" "$PLUGINSDIR\LYTE.exe" /end
     Pop $0
     ${If} $0 != "OK"
       MessageBox MB_ICONSTOP "Failed to download LYTE. Installation aborted. (Is your internet connected?)"
       Abort
     ${EndIf}
   ${EndIf}
+
+  ; Copy downloaded file to installation directory
+  DetailPrint "Installing LYTE..."
+  SetOutPath "$INSTDIR"
+  CopyFiles "$PLUGINSDIR\LYTE.exe" "$INSTDIR\LYTE.exe"
+  IfFileExists "$INSTDIR\LYTE.exe" 0 copy_error
+  Goto install_done
+
+  dir_error:
+    MessageBox MB_ICONSTOP "Cannot create or access installation directory: $INSTDIR$\nPlease ensure you have administrator privileges and the directory is writable."
+    Abort
+
+  copy_error:
+    MessageBox MB_ICONSTOP "Failed to copy LYTE.exe to installation directory. Please check permissions."
+    Abort
+
+  install_done:
 
   ; Create shortcuts if selected
   ${If} $AddStartMenu == ${BST_CHECKED}

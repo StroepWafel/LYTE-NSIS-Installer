@@ -1,4 +1,4 @@
-name: Build NSIS Installer
+name: Build NSIS Installer (No Sign)
 
 on:
   push:

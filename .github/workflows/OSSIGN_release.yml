@@ -92,6 +92,7 @@ jobs:
             LYTE_Installer.exe
           name: "Latest Release"
           tag_name: latest
+          make_latest: true
           body: |
             <img src="https://github.com/ossign.png" alt="OSSign Logo" width="100" height="100" />
             # Signed Release ${{ github.event.inputs.release_name }}

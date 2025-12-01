@@ -35,14 +35,3 @@ jobs:
       with:
         name: LYTE_Installer
         path: LYTE_Installer.exe
-
-    - name: Create or update latest release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: latest
-        name: "Latest Release"
-        files: LYTE_Installer.exe
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,106 +1,59 @@
-name: Build and Sign via OSSIGN
+# This file will build the program and dispatch it to OSSign for signing.
+# It will then start a waiting loop with the workflow file wait-signature to wait for the signed files to appear
+name: Build and Dispatch OSSIGN
 
 on:
-  workflow_dispatch:
-    inputs:
-
-      source_branch:
-        description: 'The source branch or ref to build from'
-        default: 'main'
-        required: true
-
-      release_name:
-        description: 'The name for the release'
-        required: true
-
-
-env:
-  SOURCE_REPOSITORY: 'StroepWafel/LYTE-NSIS-Installer'
-  SOURCE_REPOSITORY_NAME: 'LYTE-NSIS-Installer'
-
+  push:
+    tags: ['*.*.*']
 
 jobs:
   build:
     runs-on: windows-latest
-    
     permissions:
-      contents: write
-      
+      # Needs actions: write to be able to dispatch workflows
+      actions: write
+      contents: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.SOURCE_REPOSITORY }}
-          ref: ${{ github.event.inputs.source_branch }}
-          fetch-depth: 1
+      # Checkout the code and build the NSIS installer
+      # to make sure everything works as expected
+      - uses: actions/checkout@v5
 
       - name: Install NSIS
         run: choco install nsis -y
-  
+
       - name: Add NSIS to PATH
         run: echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-    
+  
       - name: Copy inetc plugin DLLs
-        shell: bash
         run: |
-          rm -rf plugins Plugins
-          curl -o Inetc.zip https://nsis.sourceforge.io/mediawiki/images/c/c9/Inetc.zip
-          unzip Inetc.zip
-          cp Plugins/x86-unicode/INetC.dll "C:/Program Files (x86)/NSIS/Plugins/x86-unicode/inetc.dll"
-          cp Plugins/x86-ansi/INetC.dll "C:/Program Files (x86)/NSIS/Plugins/x86-ansi/inetc.dll"
-          rm Inetc.zip
-    
+          copy plugins\x86-ansi\inetc.dll "C:\Program Files (x86)\NSIS\Plugins\x86-ansi\inetc.dll"
+          copy plugins\x86-unicode\inetc.dll "C:\Program Files (x86)\NSIS\Plugins\x86-unicode\inetc.dll"
+
       - name: Compile NSIS installer
         run: makensis LYTEInstaller.nsi
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      # Dispatch a request to the OSSign repo for build + signing
+      - name: Dispatch to OSSign
+        id: dispatch
+        uses: ossign/actions/workflow/dispatch@main
         with:
-          name: files-to-sign
-          path: LYTE_Installer.exe
+          # You receive the username and token from OSSign after your application has been approved
+          username: ${{ secrets.OSSIGN_USER }}
+          token: ${{ secrets.OSSIGN_TOKEN }}
 
-  sign:
-    environment: OSSign
-    needs: build
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v5
+          # If you want to keep the workflow running until you have the signed file, you can change this to false
+          # Bear in mind that it might sometimes take a while before the dispatch is approved, and this will keep the workflow running and billing if you are using a non-free runner
+          dispatch_only: true
+        
+      # Echo the workflow ID for debugging purposes
+      - run: |
+          echo "Received workflow ID: ${{ steps.dispatch.outputs.workflow_id }}"
+    
+      # Starts the waiting loop, only required with dispatch_only: true
+      # This will start the waiting-loop.yml workflow. For more information, see that file.    
+      - name: Start the waiting loop
+        uses: benc-uk/workflow-dispatch@v1
         with:
-          name: files-to-sign
-
-      - uses: ossign/ossign@main
-        with:
-          config: ${{ secrets.OSSIGN_CONFIG }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          installOnly: false
-      
-          # Sign a single file
-          inputFile: LYTE_Installer.exe
-          outputFile: LYTE_Installer.exe
-          
-          # Type of signature. Can be "pecoff", "msi", "jar", "apk" or "dmg"
-          signatureType: pecoff
-
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            LYTE_Installer.exe
-          name: "Latest Release"
-          tag_name: latest
-          make_latest: true
-          body: |
-            <img src="https://github.com/ossign.png" alt="OSSign Logo" width="100" height="100" />
-            # Signed Release ${{ github.event.inputs.release_name }}
-            
-            These are the distributable files for the signed release of ${{ env.SOURCE_REPOSITORY_NAME }} ${{ github.event.inputs.release_name }}
-
-            The source code was fetched from https://github.com/${{ env.SOURCE_REPOSITORY }}@${{ github.event.inputs.source_branch }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          workflow: wait-signature.yml
+          inputs: |
+            { "workflow_id": "${{ steps.dispatch.outputs.workflow_id }}" }

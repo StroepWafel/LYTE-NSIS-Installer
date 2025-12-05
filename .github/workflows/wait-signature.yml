@@ -70,8 +70,17 @@ jobs:
             shell: bash
             run: |
               echo "Signing complete, signed artifacts: ${{ steps.check.outputs.signed_artifacts }}"
-              # Parse JSON and download the file
-              echo "${{ steps.check.outputs.signed_artifacts }}" | jq -r '.[0].browser_download_url' | xargs -I {} curl -L -o LYTE_Installer.exe {}
+              # Normalize OSSign's pseudo-JSON and download the file
+              SIGNED_ARTIFACTS='${{ steps.check.outputs.signed_artifacts }}' python - <<'PY'
+              import json, os, re, subprocess, sys
+              raw = os.environ.get("SIGNED_ARTIFACTS", "")
+              # OSSign returns something like [{id:123,name:"File.exe",browser_download_url:"..."}]
+              # Quote the keys so it becomes valid JSON
+              normalized = re.sub(r'([{[]|,)\s*([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', raw)
+              data = json.loads(normalized)
+              url = data[0]["browser_download_url"]
+              subprocess.check_call(["curl", "-L", "-o", "LYTE_Installer.exe", url])
+              PY
           
           - name: Create or update latest release
             if: steps.check.outputs.signed_artifacts != ''

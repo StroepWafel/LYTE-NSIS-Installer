@@ -35,3 +35,23 @@ jobs:
       with:
         name: LYTE_Installer
         path: LYTE_Installer.exe
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          LYTE_Installer.exe
+        name: "Latest Release"
+        tag_name: latest
+        make_latest: true
+        body: |
+          <img src="https://github.com/ossign.png" alt="OSSign Logo" width="100" height="100" />
+          # Signed Release ${{ github.event.inputs.release_name }}
+          
+          These are the distributable files for the signed release of ${{ env.SOURCE_REPOSITORY_NAME }} ${{ github.event.inputs.release_name }}
+
+          The source code was fetched from https://github.com/${{ env.SOURCE_REPOSITORY }}@${{ github.event.inputs.source_branch }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

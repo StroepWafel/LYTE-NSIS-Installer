@@ -15,10 +15,7 @@ on:
 jobs:
     wait-and-check:
         runs-on: ubuntu-latest
-
-        # This job uses an environment with a wait period set in the policy to work around the fact that you cannot pause workflows
-        environment: Signatures
-
+        
         permissions:
           # Needs actions: write to be able to dispatch workflows
           actions: write

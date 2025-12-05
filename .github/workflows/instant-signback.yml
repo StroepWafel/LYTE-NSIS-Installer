@@ -1,0 +1,75 @@
+# This file implements a waiting loop to check for signed files from OSSign.
+
+# You need to create the environment "Signatures" (or another name) in your repository
+# and set a waiting period to change the interval. If you do not set a waiting period, this workflow will run again directly after it has finished every time.
+name: Check For OSSIGN finish
+
+on:
+  # You can also manually start this workflow with the ID printed out in the dispatch workflow
+  workflow_dispatch:
+    inputs:
+      workflow_id:
+        description: 'The workflow ID from dispatch'
+        required: true
+        type: string
+jobs:
+    wait-and-check:
+        runs-on: ubuntu-latest
+
+        # This job uses an environment with a wait period set in the policy to work around the fact that you cannot pause workflows
+        environment: Signatures
+
+        permissions:
+          # Needs actions: write to be able to dispatch workflows
+          actions: write
+
+          #  Uses contents: write to be able to read and write workflow artifacts
+          contents: write
+        steps:
+        
+          - name: Check if signing is finished
+            id: check
+            uses: ossign/actions/workflow/dispatch@main
+            with:
+              username: ${{ secrets.OSSIGN_USER }}
+              token: ${{ secrets.OSSIGN_TOKEN }}
+              single_check: ${{ github.event.inputs.workflow_id }}
+        
+          # Download the signed artifacts and upload them to releases
+          # The data returned in signed_artifacts is:
+          # [
+          #    {
+          #        "id": "Release artifact ID",
+          #        "name": "Filename.exe",
+          #        "url": "https://api.github.com/repos/OSSign/exampleuser--examplerepo/releases/assets/[releaseArtifactID]",
+          #        "browser_download_url": "https://github.com/OSSign/exampleuser--examplerepo/releases/download/[releaseArtifactID]/Filename.exe"
+          #    }
+          # ]
+          - name: Download signed file
+            if: steps.check.outputs.signed_artifacts != ''
+            shell: bash
+            run: |
+              echo "Signing complete, signed artifacts: ${{ steps.check.outputs.signed_artifacts }}"
+              # Normalize OSSign's pseudo-JSON and download the file
+              SIGNED_ARTIFACTS='${{ steps.check.outputs.signed_artifacts }}' python - <<'PY'
+              import json, os, re, subprocess, sys
+              raw = os.environ.get("SIGNED_ARTIFACTS", "")
+              # OSSign returns something like [{id:123,name:"File.exe",browser_download_url:"..."}]
+              # Quote the keys so it becomes valid JSON
+              normalized = re.sub(r'([{[]|,)\s*([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', raw)
+              data = json.loads(normalized)
+              url = data[0]["browser_download_url"]
+              subprocess.check_call(["curl", "-L", "-o", "LYTE_Installer.exe", url])
+              PY
+          
+          - name: Create or update latest release
+            if: steps.check.outputs.signed_artifacts != ''
+            uses: softprops/action-gh-release@v1
+            with:
+              tag_name: latest
+              name: "Latest Release"
+              files: LYTE_Installer.exe
+              draft: false
+              prerelease: false
+            env:
+              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

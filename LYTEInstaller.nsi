@@ -259,11 +259,77 @@ Section "Python 3.13.6" SEC_PYTHON
     Sleep 3000
 
     DetailPrint "Installing DearPyGui via pip..."
+    
+    ; Try to find Python executable in common locations
+    StrCpy $1 ""
+    ReadRegStr $1 HKLM "SOFTWARE\Python\PythonCore\3.13\InstallPath" ""
+    ${If} $1 != ""
+      ; Found Python in registry, use full path
+      StrCpy $1 "$1python.exe"
+      IfFileExists "$1" 0 try_path_python
+      DetailPrint "Using Python from registry: $1"
+      nsExec::ExecToLog '"$1" -m pip install dearpygui --upgrade'
+      Pop $0
+      ${If} $0 == 0
+        Goto pip_success
+      ${EndIf}
+    ${EndIf}
+    
+    try_path_python:
+    ; Try using python from PATH (use a new cmd session to get updated PATH)
+    DetailPrint "Trying Python from PATH..."
     nsExec::ExecToLog 'cmd /c "python -m pip install dearpygui --upgrade"'
     Pop $0
-    ${If} $0 != 0
-      MessageBox MB_ICONEXCLAMATION "Failed to install DearPyGui via pip (exit code: $0). You may need to install it manually later."
+    ${If} $0 == 0
+      Goto pip_success
     ${EndIf}
+    
+    ; Try with full path using common installation location (system-wide)
+    StrCpy $1 "$PROGRAMFILES64\Python313\python.exe"
+    IfFileExists "$1" 0 try_user_python
+    DetailPrint "Trying Python from Program Files: $1"
+    nsExec::ExecToLog '"$1" -m pip install dearpygui --upgrade'
+    Pop $0
+    ${If} $0 == 0
+      Goto pip_success
+    ${EndIf}
+    
+    try_user_python:
+    ; Try user's local Python installation
+    StrCpy $1 "$LOCALAPPDATA\Programs\Python\Python313\python.exe"
+    IfFileExists "$1" 0 try_py_launcher
+    DetailPrint "Trying Python from user AppData: $1"
+    nsExec::ExecToLog '"$1" -m pip install dearpygui --upgrade'
+    Pop $0
+    ${If} $0 == 0
+      Goto pip_success
+    ${EndIf}
+    
+    try_py_launcher:
+    ; Try using py launcher (Python 3.13)
+    DetailPrint "Trying Python launcher (py -3.13)..."
+    nsExec::ExecToLog 'cmd /c "py -3.13 -m pip install dearpygui --upgrade"'
+    Pop $0
+    ${If} $0 == 0
+      Goto pip_success
+    ${EndIf}
+    
+    ; Try using py launcher (default Python 3)
+    DetailPrint "Trying Python launcher (py -3)..."
+    nsExec::ExecToLog 'cmd /c "py -3 -m pip install dearpygui --upgrade"'
+    Pop $0
+    ${If} $0 == 0
+      Goto pip_success
+    ${EndIf}
+    
+    ; All methods failed
+    MessageBox MB_ICONEXCLAMATION "Failed to install DearPyGui via pip (exit code: $0). You may need to install it manually later.$\n$\nYou can install it by running:$\npython -m pip install dearpygui --upgrade"
+    Goto pip_done
+    
+    pip_success:
+    DetailPrint "Successfully installed DearPyGui via pip"
+    
+    pip_done:
     
     skip_python:
   ${EndIf}

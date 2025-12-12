@@ -24,9 +24,14 @@ jobs:
         run: echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
   
       - name: Copy inetc plugin DLLs
+        shell: bash
         run: |
-          copy plugins\x86-ansi\inetc.dll "C:\Program Files (x86)\NSIS\Plugins\x86-ansi\inetc.dll"
-          copy plugins\x86-unicode\inetc.dll "C:\Program Files (x86)\NSIS\Plugins\x86-unicode\inetc.dll"
+          rm -rf plugins Plugins
+          curl -o Inetc.zip https://nsis.sourceforge.io/mediawiki/images/c/c9/Inetc.zip
+          unzip Inetc.zip
+          cp Plugins/x86-unicode/INetC.dll "C:/Program Files (x86)/NSIS/Plugins/x86-unicode/inetc.dll"
+          cp Plugins/x86-ansi/INetC.dll "C:/Program Files (x86)/NSIS/Plugins/x86-ansi/inetc.dll"
+          rm Inetc.zip
 
       - name: Compile NSIS installer
         run: makensis LYTEInstaller.nsi

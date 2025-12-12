@@ -6,10 +6,11 @@ name: Build and Dispatch OSSIGN
 on:
   workflow_dispatch:
     inputs:
-      info:
-        description: "Usually reviewed between 08:00 - 23:00 CEST (17:30 - 08:30 ACDT)"
+      acknowledge_review_window:
+        description: "I understand this is usually reviewed between 08:00–23:00 CEST (17:30–08:30 ACDT)"
+        type: boolean
         required: false
-        default: ""
+        default: false
 
 jobs:
   build:

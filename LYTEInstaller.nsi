@@ -17,13 +17,13 @@ Unicode True
 ;--------------------------------
 ; Modern UI Settings
 ;--------------------------------
-!define MUI_ICON "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
-!define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
+!define MUI_ICON "branding\ico\install.ico"
+!define MUI_UNICON "branding\ico\uninstall.ico"
 !define MUI_HEADERIMAGE
-!define MUI_HEADERIMAGE_BITMAP "${NSISDIR}\Contrib\Graphics\Header\nsis3-metro.bmp"
+!define MUI_HEADERIMAGE_BITMAP "branding\headerimage.bmp"
 !define MUI_HEADERIMAGE_RIGHT
-!define MUI_WELCOMEFINISHPAGE_BITMAP "${NSISDIR}\Contrib\Graphics\Wizard\nsis3-metro.bmp"
-!define MUI_UNWELCOMEFINISHPAGE_BITMAP "${NSISDIR}\Contrib\Graphics\Wizard\nsis3-metro.bmp"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "branding\wizard.bmp"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "branding\wizard.bmp"
 
 ;--------------------------------
 ; Variables for config options
@@ -38,6 +38,11 @@ Var PythonCheckbox
 Var VLCCheckbox
 Var VCRedistCheckbox
 Var ComponentsLabel
+Var VersionDropdown
+Var SelectedVersion
+Var VersionPageDialog
+Var ShortcutsPageDialog
+Var ShortcutsLabel
 
 ; Variables for uninstall
 Var RemoveSettings
@@ -47,9 +52,11 @@ Var RemoveSettings
 ;--------------------------------
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "license.txt"
+Page custom VersionPageCreate VersionPageLeave
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE DirectoryPageLeave
 !insertmacro MUI_PAGE_DIRECTORY
 Page custom ComponentsPageCreate ComponentsPageLeave
+Page custom ShortcutsPageCreate ShortcutsPageLeave
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\LYTE.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Launch LYTE"
@@ -98,6 +105,60 @@ Function DirectoryPageLeave
 FunctionEnd
 
 ;--------------------------------
+; Version Page Functions
+;--------------------------------
+
+Function VersionPageCreate
+  nsDialogs::Create 1018
+  Pop $VersionPageDialog
+  ${If} $VersionPageDialog == error
+    Abort
+  ${EndIf}
+
+  ${NSD_CreateLabel} 0 10 100% 30 "Select which LYTE release to download."
+  Pop $0
+
+  ${NSD_CreateLabel} 0 40 100% 30 "Default is latest. Pick a specific release tag if you need an older version."
+  Pop $0
+
+  ${NSD_CreateDropList} 20 75 60% 100 ""
+  Pop $VersionDropdown
+  ${NSD_CB_AddString} $VersionDropdown "latest (recommended)"
+  ${NSD_CB_AddString} $VersionDropdown "1.8.3-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.8.2-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.8.1-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.8.0-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.7.2-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.7.1-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.6.0-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.5.0-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.4.1-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.4.0-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.3.2-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.3.1-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.3.0-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.2.0-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.0.2-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.0.1-Release"
+  ${NSD_CB_AddString} $VersionDropdown "1.0.0-Release"
+  ${NSD_CB_AddString} $VersionDropdown "release"
+  ${NSD_CB_SelectString} $VersionDropdown "latest (recommended)"
+
+  nsDialogs::Show
+FunctionEnd
+
+Function VersionPageLeave
+  ; Capture selected LYTE version (default to latest)
+  ${NSD_GetText} $VersionDropdown $SelectedVersion
+  ${If} $SelectedVersion == ""
+    StrCpy $SelectedVersion "latest"
+  ${EndIf}
+  ${If} $SelectedVersion == "latest (recommended)"
+    StrCpy $SelectedVersion "latest"
+  ${EndIf}
+FunctionEnd
+
+;--------------------------------
 ; Components Page Functions
 ;--------------------------------
 
@@ -118,37 +179,20 @@ Function ComponentsPageCreate
   Pop $0
 
   ; Python component
-  ${NSD_CreateCheckBox} 20 70 100% 15 "Python 3.13.6 (Required for LYTE to function)"
+  ${NSD_CreateCheckBox} 20 75 90% 26 "Python 3.13.11 (required; needs ~7GB free space)"
   Pop $PythonCheckbox
   ${NSD_SetState} $PythonCheckbox ${BST_CHECKED}
 
   ; VLC component
-  ${NSD_CreateCheckBox} 20 90 100% 15 "VLC Media Player (For playback support)"
+  ${NSD_CreateCheckBox} 20 105 90% 26 "VLC Media Player (playback support; needs ~60MB free space)"
   Pop $VLCCheckbox
   ${NSD_SetState} $VLCCheckbox ${BST_CHECKED}
 
   ; VC++ Redistributable component
-  ${NSD_CreateCheckBox} 20 110 100% 15 "Microsoft Visual C++ Redistributable (Required for other components)"
+  ${NSD_CreateCheckBox} 20 135 90% 26 "Microsoft Visual C++ Redistributable (required by other components; needs ~16MB)"
   Pop $VCRedistCheckbox
   ${NSD_SetState} $VCRedistCheckbox ${BST_CHECKED}
 
-  ; Shortcuts section
-  ${NSD_CreateLabel} 0 140 100% 15 "Shortcuts:"
-  Pop $0
-  SendMessage $0 ${WM_SETFONT} 0 0
-
-  ${NSD_CreateCheckBox} 20 160 100% 15 "Create Start Menu shortcut"
-  Pop $0
-  ${NSD_SetState} $0 ${BST_CHECKED}
-  ${NSD_OnClick} $0 OnStartMenuClick
-  StrCpy $AddStartMenu ${BST_CHECKED}
-
-  ${NSD_CreateCheckBox} 20 180 100% 15 "Create Desktop shortcut"
-  Pop $0
-  ${NSD_SetState} $0 ${BST_CHECKED}
-  ${NSD_OnClick} $0 OnDesktopClick
-  StrCpy $AddDesktop ${BST_CHECKED}
-    
   nsDialogs::Show
 FunctionEnd
 
@@ -156,6 +200,40 @@ Function ComponentsPageLeave
   ${NSD_GetState} $PythonCheckbox $InstallPython
   ${NSD_GetState} $VLCCheckbox $InstallVLC
   ${NSD_GetState} $VCRedistCheckbox $InstallVCRedist
+FunctionEnd
+
+;--------------------------------
+; Shortcuts Page Functions
+;--------------------------------
+
+Function ShortcutsPageCreate
+  nsDialogs::Create 1018
+  Pop $ShortcutsPageDialog
+  ${If} $ShortcutsPageDialog == error
+    Abort
+  ${EndIf}
+
+  ${NSD_CreateLabel} 0 10 100% 20 "Choose which shortcuts to create"
+  Pop $ShortcutsLabel
+  SendMessage $ShortcutsLabel ${WM_SETFONT} 0 0
+
+  ${NSD_CreateCheckBox} 20 45 100% 15 "Create Start Menu shortcut"
+  Pop $0
+  ${NSD_SetState} $0 ${BST_CHECKED}
+  ${NSD_OnClick} $0 OnStartMenuClick
+  StrCpy $AddStartMenu ${BST_CHECKED}
+
+  ${NSD_CreateCheckBox} 20 65 100% 15 "Create Desktop shortcut"
+  Pop $0
+  ${NSD_SetState} $0 ${BST_CHECKED}
+  ${NSD_OnClick} $0 OnDesktopClick
+  StrCpy $AddDesktop ${BST_CHECKED}
+
+  nsDialogs::Show
+FunctionEnd
+
+Function ShortcutsPageLeave
+  ; states already captured by click handlers; no-op placeholder
 FunctionEnd
 
 Function OnStartMenuClick
@@ -202,7 +280,7 @@ Section "Microsoft Visual C++ Redistributable" SEC_VC
   ${EndIf}
 SectionEnd
 
-Section "Python 3.13.6" SEC_PYTHON
+Section "Python 3.13.11" SEC_PYTHON
   ${If} $InstallPython == ${BST_CHECKED}
     ; Check if Python is already installed
     DetailPrint "Checking if Python is already installed..."
@@ -221,14 +299,14 @@ Section "Python 3.13.6" SEC_PYTHON
       DetailPrint "Python not found. Downloading Python installer..."
       SetOutPath "$PLUGINSDIR"
       
-      inetc::get "https://www.python.org/ftp/python/3.13.6/python-3.13.6-amd64.exe" "$PLUGINSDIR\python-3.13.6-amd64.exe" /end
+      inetc::get "https://www.python.org/ftp/python/3.13.11/python-3.13.11-amd64.exe" "$PLUGINSDIR\python-3.13.11-amd64.exe" /end
       Pop $0
       ${If} $0 != "OK"
         MessageBox MB_ICONSTOP|MB_RETRYCANCEL "Failed to download Python installer. Error: $0. Click Retry to try again or Cancel to skip this component." IDRETRY retry_python_download IDCANCEL skip_python
         Goto skip_python
         retry_python_download:
         DetailPrint "Retrying Python download..."
-        inetc::get "https://www.python.org/ftp/python/3.13.6/python-3.13.6-amd64.exe" "$PLUGINSDIR\python-3.13.6-amd64.exe" /end
+        inetc::get "https://www.python.org/ftp/python/3.13.11/python-3.13.11-amd64.exe" "$PLUGINSDIR\python-3.13.11-amd64.exe" /end
         Pop $0
         ${If} $0 != "OK"
           MessageBox MB_ICONSTOP "Failed to download Python. Skipping."
@@ -237,7 +315,7 @@ Section "Python 3.13.6" SEC_PYTHON
       ${EndIf}
 
       DetailPrint "Installing Python..."
-      ExecWait '"$PLUGINSDIR\python-3.13.6-amd64.exe" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0 Include_doc=0 Include_tcltk=0' $0
+      ExecWait '"$PLUGINSDIR\python-3.13.11-amd64.exe" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0 Include_doc=0 Include_tcltk=0' $0
       ${If} $0 != 0
         ; Exit code 1638 means "Another version is already installed" - treat as success
         ${If} $0 == 1638
@@ -371,17 +449,29 @@ Section "LYTE Application" SEC_MAIN
   CreateDirectory "$INSTDIR"
   IfFileExists "$INSTDIR\*.*" 0 dir_error
   SetOutPath "$INSTDIR"
+  AddSize 22000
 
   ; Download to temporary location first, then copy to final location
   DetailPrint "Downloading LYTE..."
   SetOutPath "$PLUGINSDIR"
-  inetc::get "https://github.com/StroepWafel/LYTE/releases/latest/download/LYTE.exe" "$PLUGINSDIR\LYTE.exe" /end
+  ; Build download URL based on chosen version
+  StrCpy $0 $SelectedVersion
+  ${If} $0 == ""
+    StrCpy $0 "latest"
+  ${EndIf}
+  ${If} $0 == "latest"
+    StrCpy $1 "https://github.com/StroepWafel/LYTE/releases/latest/download/LYTE.exe"
+  ${Else}
+    StrCpy $1 "https://github.com/StroepWafel/LYTE/releases/download/$0/LYTE.exe"
+  ${EndIf}
+
+  inetc::get "$1" "$PLUGINSDIR\LYTE.exe" /end
   Pop $0
   ${If} $0 != "OK"
     MessageBox MB_ICONSTOP|MB_RETRYCANCEL "Failed to download LYTE. Error: $0. Click Retry to try again or Cancel to abort installation." IDRETRY retry_lyte_download IDCANCEL abort_install
     retry_lyte_download:
     DetailPrint "Retrying LYTE download..."
-    inetc::get "https://github.com/StroepWafel/LYTE/releases/latest/download/LYTE.exe" "$PLUGINSDIR\LYTE.exe" /end
+    inetc::get "$1" "$PLUGINSDIR\LYTE.exe" /end
     Pop $0
     ${If} $0 != "OK"
       MessageBox MB_ICONSTOP "Failed to download LYTE. Installation aborted. (Is your internet connected?)"

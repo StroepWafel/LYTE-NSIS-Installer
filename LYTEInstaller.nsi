@@ -124,6 +124,7 @@ Function VersionPageCreate
   ${NSD_CreateDropList} 20 75 60% 100 ""
   Pop $VersionDropdown
   ${NSD_CB_AddString} $VersionDropdown "latest (recommended)"
+  ${NSD_CB_AddString} $VersionDropdown "1.10.0-Release"
   ${NSD_CB_AddString} $VersionDropdown "1.9.0-Release"
   ${NSD_CB_AddString} $VersionDropdown "1.8.3-Release"
   ${NSD_CB_AddString} $VersionDropdown "1.8.2-Release"
@@ -607,6 +608,7 @@ FunctionEnd
 ; Section Descriptions
 ;--------------------------------
 ; Note: Section descriptions are handled in the custom ComponentsPageCreate function
+
 
 
 
